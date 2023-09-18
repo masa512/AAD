@@ -175,7 +175,7 @@ def eval_corr(y,yhat):
     yhat = yhat/np.linalg.norm(yhat)
     
     # Step 2 : Dot product
-    return np.dot(y,yhat)
+    return np.dot(y.flatten(),yhat.flatten())
 
 
 def AAD_forward(paths,Cxx,Cxy0,Ntrial):
@@ -186,15 +186,58 @@ def AAD_forward(paths,Cxx,Cxy0,Ntrial):
     Cxx : True Cxx for paths used
     Cxy0 : Prior Cxy used for decoder evaluation for current iteration
     Ntrial : Number of trials used for this iteration
+
+    Output
+    w : New weight
     """
-    
+    Cxy = Cxy0
     w = np.linalg.pinv(Cxx) @ Cxy
     
-    
     # Store labels used for 
+    cnt = 0
+    for path in paths:
+        Cxy = np.zeros_like(Cxy)
+        for k in range(Ntrial):
+            # Get current data
+            cur_data = AAD_data(path,k)
+            Xw,Yw = window_XY(cur_data['eeg'],cur_data['env'])
+            # Get prior prediction
+            yprior = Xw@w
+            # Return argmax of the two correlations
+            rho = [eval_corr(y,yprior) for y in Yw]
+            idx = rho.index(max(rho))
+            ypost = Yw[idx]
+            # Evaluate new cross correlation
+            Cxy = Cxy + Xw.T @ ypost  
+            cnt += 1
+    
+    Cxy = Cxy * 1/cnt
+    # Update Decoder
+    w = np.linalg.pinv(Cxx) @ Cxy
+
+    return w,Cxy
+
+def AAD_test(paths,w,Ntrial):
+    score = 0
+    cnt = 0
     for path in paths:
         for k in range(Ntrial):
-            
+            # Get current data
+            cur_data = AAD_data(path,k)
+            Xw,Yw = window_XY(cur_data['eeg'],cur_data['env'])
+            label = dir2label(cur_data['lab'])
+
+            # Get prediction env
+            yprior = Xw@w
+
+            # Return argmax
+            rho = [eval_corr(y,yprior) for y in Yw]
+            idx = rho.index(max(rho))+1
+            if idx == label:
+                score += 1
+            cnt += 1
+
+    return score/cnt
             
             
     

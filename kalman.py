@@ -138,21 +138,21 @@ def init_params_AAD(paths,cxy_mode = "rand",cxy0 = None,lambd = 0.5):
     cnt = 0
     # Sample one example for size
     data = AAD_data(paths[0],0)
-    TdNc = data['eeg'].shape[1]
+    TdNc = 16*data['eeg'].shape[1] # 16 is Td in index
     Cxx = np.zeros((TdNc,TdNc))
     for path in paths:
         for k in range(20):
             data = AAD_data(path,k)
             # Get the sequential data
-            Xw,Yw = Xwindow_XY(data['eeg'],data['env'])
+            Xw,_ = window_XY(data['eeg'],data['env'])
             # Append to Cxx
-            Cxx = Cxx + X.T @ X
+            Cxx = Cxx + Xw.T @ Xw
             cnt += 1
     Cxx = Cxx / cnt
 
     # Initialize the Cxy
-    if cxy_model == "rand":
-        Cxy = lambd * np.random.rand((TdNc,1))
+    if cxy_mode == "rand":
+        Cxy = lambd * np.random.rand(TdNc,1)
     else: # if det
         Cxy = cxy0
 
@@ -160,3 +160,44 @@ def init_params_AAD(paths,cxy_mode = "rand",cxy0 = None,lambd = 0.5):
     w0 = np.linalg.pinv(Cxx) @ Cxy
 
     return Cxx,Cxy,w0
+
+def eval_corr(y,yhat):
+    """
+    Evaluates normalized correlation between y and yhat
+    Returns a magnitude to indicate "strength" of resemblence
+    
+    y : Reference Signal (T,1)
+    yhat : SOI (T,1)
+    """
+    
+    # Step 1 : Scale down
+    y = y/np.linalg.norm(y)
+    yhat = yhat/np.linalg.norm(yhat)
+    
+    # Step 2 : Dot product
+    return np.dot(y,yhat)
+
+
+def AAD_forward(paths,Cxx,Cxy0,Ntrial):
+    """
+    Evaluate single iteration of update for AAD Unsupervised Training
+    
+    paths : each path corresponding to one subject
+    Cxx : True Cxx for paths used
+    Cxy0 : Prior Cxy used for decoder evaluation for current iteration
+    Ntrial : Number of trials used for this iteration
+    """
+    
+    w = np.linalg.pinv(Cxx) @ Cxy
+    
+    
+    # Store labels used for 
+    for path in paths:
+        for k in range(Ntrial):
+            
+            
+            
+    
+    
+    
+    
